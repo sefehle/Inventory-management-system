@@ -1,0 +1,246 @@
+﻿@model IEnumerable<NorthmedClinic.Models.SupplierRecommendation>
+
+@{
+    ViewBag.Title = "Recommended Suppliers";
+}
+
+<h2 class="text-center mb-4" style="color: #1e3a8a;">Recommended Suppliers for Your Order</h2>
+
+@using (Html.BeginForm("MakeOrderWithSelectedSuppliers", "Pharmacist", FormMethod.Post))
+{
+    <div class="form-check mb-4 d-flex justify-content-center align-items-center">
+        <input type="checkbox" class="form-check-input me-2" id="notifyAllCheckbox">
+        <label class="form-check-label" for="notifyAllCheckbox">Notify me when unavailable items are in stock</label>
+    </div>
+
+    foreach (var recommendation in Model)
+    {
+        var quantityNeeded = recommendation.Suppliers.FirstOrDefault()?.QuantityNeeded ?? 0;
+        var unavailableQuantityNeeded = recommendation.QuantityNeeded;
+
+
+
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <strong>Item:</strong> @recommendation.ItemName (Qty Needed: @(recommendation.Suppliers.Any() ? quantityNeeded : unavailableQuantityNeeded))
+
+            </div>
+            <div class="card-body">
+                @if (recommendation.Suppliers.Any())
+                {
+                    <!-- System Recommended Supplier Combination -->
+                    <div class="recommended-option border border-success rounded p-3 mb-3">
+                        @{
+                            decimal totalCost = 0M;
+                            int totalQuantity = 0;
+                            int supplierCount = 0; // Counter for uniquely identifying each supplier in hidden inputs
+                        }
+
+                        <div class="d-flex align-items-center mb-2">
+                            <input type="radio" name="SelectedSupplier_@recommendation.OrderItemId"
+                                   value="Recommended" class="form-check-input me-2 recommended-radio" checked>
+                            <i class="bi bi-cart4 me-2"></i>
+                            <strong class="text-success">System Chosen Option:</strong>
+                        </div>
+
+                        <!-- Hidden fields to capture item details -->
+                        <input type="hidden" name="OrderItemId" value="@recommendation.OrderItemId" />
+                        <input type="hidden" name="ItemName_@recommendation.OrderItemId" value="@recommendation.ItemName" />
+                        <input type="hidden" name="QuantityNeeded_@recommendation.OrderItemId" value="@quantityNeeded" />
+
+                        <div class="d-flex align-items-center justify-content-start flex-wrap">
+                            @foreach (var supplier in recommendation.Suppliers.OrderBy(s => s.Price))
+                            {
+                                if (totalQuantity >= quantityNeeded) { break; }
+                                var supplyAmount = Math.Min(supplier.QuantityAvailable, quantityNeeded - totalQuantity);
+                                totalCost += supplyAmount * supplier.Price;
+                                totalQuantity += supplyAmount;
+                                supplierCount++;
+
+                                <div class="supplier-item border rounded p-2 m-1">
+                                    <p><strong>@supplier.SupplierName</strong></p>
+                                    <p>Qty: @supplyAmount at @supplier.Price.ToString("C")</p>
+                                </div>
+
+                                <!-- Hidden fields to capture each supplier in the recommended combination -->
+                                <input type="hidden" name="Suppliers[@recommendation.OrderItemId][Recommended][@supplierCount].SupplierId" value="@supplier.SupplierId" />
+                                <input type="hidden" name="Suppliers[@recommendation.OrderItemId][Recommended][@supplierCount].Quantity" value="@supplyAmount" />
+                                <input type="hidden" name="Suppliers[@recommendation.OrderItemId][Recommended][@supplierCount].Price" value="@supplier.Price" />
+
+                                if (totalQuantity < quantityNeeded)
+                                {
+                                    <span class="plus-icon text-muted mx-2">+</span>
+                                }
+                            }
+                        </div>
+                        <p class="text-success mt-2"><strong>Total Combined Cost:</strong> @totalCost.ToString("C")</p>
+
+
+                        @if (totalQuantity < quantityNeeded)
+                        {
+                            <p class="text-danger mt-2"><strong>Warning:</strong> Insufficient stock to fully fulfill the order. Only @totalQuantity out of @quantityNeeded units available.</p>
+                            <div class="d-flex align-items-center mt-2">
+                                <input type="radio" name="SelectedSupplier_@recommendation.OrderItemId" value="Notify" class="form-check-input me-2">
+                                <i class="bi bi-bell-fill me-2 text-warning"></i>
+                                <label>Notify when restocked to fulfill full order</label>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Alternative Suppliers -->
+                    <div class="alternative-options">
+                        @foreach (var alternative in recommendation.AlternativeSuppliers)
+                        {
+                            <div class="alt-supplier-option border border-warning rounded p-3 mb-2">
+                                @{
+                                    var alternativeSupplierId = alternative.SupplierId;
+                                }
+                                <div class="d-flex align-items-center mb-2">
+
+                                    <i class="bi bi-cart4 me-2"></i>
+                                    <strong>Alternatives:</strong>
+                                </div>
+                                <div>
+                                    <p><strong>Supplier:</strong> @alternative.SupplierName</p>
+                                    <p><strong>Quantity Available:</strong> @alternative.QuantityAvailable</p>
+                                    <p><strong>Price per Unit:</strong> @alternative.Price.ToString("C")</p>
+                                    <p><strong>Total Cost:</strong> @((quantityNeeded * alternative.Price).ToString("C"))</p>
+
+                                    <!-- Hidden fields for each alternative supplier -->
+                                    <input type="hidden" name="Suppliers[@recommendation.OrderItemId][Alternative].SupplierId" value="@alternative.SupplierId" />
+                                    <input type="hidden" name="Suppliers[@recommendation.OrderItemId][Alternative].Quantity" value="@alternative.QuantityAvailable" />
+                                    <input type="hidden" name="Suppliers[@recommendation.OrderItemId][Alternative].Price" value="@alternative.Price" />
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-danger mt-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i> None of the suppliers have this item in stock.
+                    </p>
+                    <input type="checkbox" class="form-check-input notify-checkbox" name="Notify_@recommendation.ItemName" />
+                    <label>Notify when available</label>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="text-center mt-4">
+        <button type="submit" class="btn btn-success" id="makeOrderButton">
+            <i class="bi bi-bag-check-fill me-1"></i> Make Order with Recommended Suppliers
+        </button>
+
+        
+
+
+    </div>
+}
+<!-- Cancel Order Button Form -->
+@using (Html.BeginForm("CancelOrder", "Pharmacist", FormMethod.Post, new { id = "cancelOrderForm" }))
+{
+    <div class="text-center mt-4">
+        <button type="submit" class="btn btn-danger ms-3" onclick="confirmCancelOrder()">
+            <i class="bi bi-x-circle-fill me-1"></i> Cancel Order
+        </button>
+    </div>
+}
+
+
+
+
+
+@section Scripts {
+    <script>
+        // Notify All Checkbox Logic
+        document.getElementById("notifyAllCheckbox").addEventListener("change", function () {
+            const notifyCheckboxes = document.querySelectorAll(".notify-checkbox");
+            notifyCheckboxes.forEach(checkbox => checkbox.checked = this.checked);
+        });
+
+        // Add Loading Overlay for "Make Order" Button
+        document.getElementById("makeOrderButton").addEventListener("click", function () {
+            document.getElementById("loadingOverlay").style.display = "flex";
+        });
+
+        // "Select All Recommended" Checkbox Logic
+        document.getElementById("selectAllRecommendedCheckbox").addEventListener("change", function () {
+            const recommendedRadios = document.querySelectorAll(".recommended-radio");
+            recommendedRadios.forEach(radio => radio.checked = this.checked);
+        });
+
+
+        // Confirmation prompt for canceling the order
+        function confirmCancelOrder() {
+            if (confirm("Are you sure you want to cancel this order? This action cannot be undone.")) {
+                document.getElementById("cancelOrderForm").submit(); // Submit the form to call CancelOrder
+            }
+        }
+
+    </script>
+}
+
+<style>
+    /* Card styling for compact display and shadow */
+    .card {
+        border-radius: 10px;
+        border: 1px solid #ddd;
+    }
+
+    /* Header styling for card */
+    .card-header {
+        font-size: 1.2em;
+        font-weight: bold;
+        padding: 10px;
+    }
+
+    /* Recommended option with a green border */
+    .recommended-option {
+        border: 2px solid #28a745;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    /* Supplier item individual border within the recommended combination */
+    .supplier-item {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 5px;
+        min-width: 120px;
+    }
+
+    /* Plus icon between suppliers in a combination */
+    .plus-icon {
+        font-size: 1.5em;
+    }
+
+    /* Alternative options with a yellow border */
+    .alt-supplier-option {
+        border: 2px solid #ffc107;
+        padding: 10px;
+        border-radius: 8px;
+    }
+
+    /* Loading overlay */
+    #loadingOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 9999;
+    }
+
+    /* Button and icon alignment */
+    .btn i {
+        font-size: 1.2em;
+        margin-right: 5px;
+    }
+</style>

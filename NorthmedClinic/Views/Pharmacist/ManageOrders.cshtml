@@ -1,0 +1,274 @@
+﻿@model IEnumerable<NorthmedClinic.Models.ManageOrderViewModel>
+
+@{
+    ViewBag.Title = "Manage Orders";
+}
+
+
+<div class="container pt-5 pb-5">
+    <h2 class="text-center mb-4">Manage Orders</h2>
+
+    <!-- Success Message -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success text-center">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+
+    <!-- Search and Sort Controls -->
+    <div class="d-flex justify-content-between mb-3">
+        <input type="text" id="searchOrderId" class="form-control me-2" placeholder="Search by Order ID" oninput="searchByOrderId()" />
+        <button id="sort-by-date" class="btn btn-orange" onclick="sortByDate()">Sort by Date Created</button>
+        <a href="@Url.Action("dashboard", "Pharmacist")" class="btn btn-orange" style="background-color: #ff7f00; border-color: #ff7f00;">Dashboard</a>
+    </div>
+
+    <!-- Orders Container -->
+    <div id="orders-container">
+        @foreach (var order in Model.GroupBy(o => o.OrderId))
+        {
+            var orderInfo = order.First(); // Get the first item for order details
+            var isCanceled = order.Any(o => o.Status == "Canceled");
+            var isVerified = orderInfo.IsVerified;  // Use the IsVerified property directly
+
+            var isReady = order.All(o => o.Status == "Ready");
+
+            <div class="card mb-4 order-card p-3 position-relative @(isCanceled ? "canceled-order" : "") @(isVerified ? "verified-order" : "")" id="order-@orderInfo.OrderId" data-order-id="@orderInfo.OrderId" data-order-date="@orderInfo.OrderDate">
+                @if (isCanceled)
+                {
+                    <div class="watermark">Canceled</div>
+                }
+                else if (isVerified)
+                {
+                    <div class="watermark">Verified</div>
+                }
+
+
+                <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #1e3a8a; color: white;">
+                    <h5 class="mb-0">Order #: @orderInfo.OrderId</h5>
+                    <small>Order Date: @orderInfo.OrderDate.ToString("MMMM dd, yyyy")</small>
+
+                    @if (isReady && !isCanceled && !isVerified)
+                    {
+                        <a class="btn btn-orange btn-sm" href="@Url.Action("VerifyOrder", "Pharmacist", new { orderId = orderInfo.OrderId })">Verify Order</a>
+                    }
+                </div>
+
+                <div class="card-body">
+                    @foreach (var item in order)
+                    {
+                        <div class="order-item border-bottom pb-2 mb-2">
+                            <h6 class="mb-1">@item.ItemName</h6>
+                            <div class="d-flex justify-content-between">
+                                <span><strong>Supplier:</strong> @item.SupplierName</span>
+                                <span><strong>Quantity:</strong> @item.QuantityOrdered</span>
+                                <span><strong>Status:</strong> @item.Status</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="card-footer text-end">
+                    @if (!isCanceled && !isVerified && !isReady)
+                    {
+                        <button class="btn btn-danger" onclick="openCancelModal(@orderInfo.OrderId)">Mark as Canceled</button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="modal" id="cancelModal" tabindex="-1" role="dialog" style="display: none;">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mark Order as Canceled</h5>
+                <button type="button" class="close" onclick="closeCancelModal()" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Please provide a reason for canceling this order:</p>
+                <textarea id="cancelReason" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCancelModal()">Close</button>
+                <button type="button" class="btn btn-danger" onclick="confirmCancelOrder()">Confirm Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Hide success message after 3 seconds
+        document.addEventListener("DOMContentLoaded", function () {
+            const successMessage = document.querySelector(".alert-success");
+            if (successMessage) {
+                setTimeout(() => {
+                    successMessage.style.display = "none";
+                }, 3000);
+            }
+        });
+
+        let cancelOrderId = null;
+
+        function openCancelModal(orderId) {
+            cancelOrderId = orderId;
+            document.getElementById("cancelModal").style.display = "block";
+        }
+
+        function closeCancelModal() {
+            document.getElementById("cancelModal").style.display = "none";
+            document.getElementById("cancelReason").value = "";
+        }
+
+        function confirmCancelOrder() {
+            const reason = document.getElementById("cancelReason").value;
+            if (reason.trim() === "") {
+                alert("Please enter a reason for canceling the order.");
+                return;
+            }
+
+            fetch(`@Url.Action("MarkOrderAsCanceled", "Pharmacist")`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: cancelOrderId })
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById(`order-${cancelOrderId}`).classList.add("canceled-order");
+                    document.getElementById(`order-${cancelOrderId}`).querySelector(".card-footer").innerHTML = "";
+                    document.getElementById(`order-${cancelOrderId}`).insertAdjacentHTML("beforeend", "<div class='watermark'>Canceled</div>");
+                } else {
+                    alert("Failed to cancel the order. Please try again.");
+                }
+                closeCancelModal();
+            })
+            .catch(error => {
+                console.error("Error canceling the order:", error);
+                alert("Failed to cancel the order due to an error.");
+                closeCancelModal();
+            });
+        }
+
+        // Search functionality
+        function searchByOrderId() {
+            const searchValue = document.getElementById("searchOrderId").value.toLowerCase();
+            const orders = document.querySelectorAll(".order-card");
+
+            orders.forEach(order => {
+                const orderId = order.getAttribute("data-order-id").toLowerCase();
+                order.style.display = orderId.includes(searchValue) ? "block" : "none";
+            });
+        }
+
+        // Sort functionality
+        function sortByDate() {
+            const container = document.getElementById("orders-container");
+            const orders = Array.from(container.querySelectorAll(".order-card"));
+
+            orders.sort((a, b) => {
+                const dateA = new Date(a.getAttribute("data-order-date"));
+                const dateB = new Date(b.getAttribute("data-order-date"));
+                return dateB - dateA;
+            });
+
+            container.innerHTML = '';
+            orders.forEach(order => container.appendChild(order));
+        }
+    </script>
+}
+
+@section Styles {
+    <style>
+        /* Defining straight orange colors */
+        .btn-orange {
+            background-color: #ff7f00;
+            color: white;
+            border-color: #ff7f00;
+        }
+
+            .btn-orange:hover {
+                background-color: #e67e00;
+                color: white;
+                border-color: #e67e00;
+            }
+
+        .order-card {
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .card-header {
+            cursor: pointer;
+            color: white;
+            background-color: #1e3a8a;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .order-item {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        .card-footer .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .d-flex.justify-content-between span {
+            flex-basis: 30%;
+            font-size: 0.9em;
+        }
+
+        .modal {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-dialog {
+            max-width: 500px;
+            margin: 100px auto;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2em;
+            color: rgba(255, 0, 0, 0.5);
+            font-weight: bold;
+            z-index: 1;
+        }
+
+        .canceled-order .watermark {
+            display: block;
+        }
+
+        .canceled-order .card-body,
+        .canceled-order .card-footer,
+        .verified-order .card-footer {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .verified-order .watermark {
+            color: rgba(34, 139, 34, 0.5);
+        }
+    </style>
+}

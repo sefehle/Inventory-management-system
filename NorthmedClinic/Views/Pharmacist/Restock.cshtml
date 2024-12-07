@@ -1,0 +1,284 @@
+﻿@model IEnumerable<NorthmedClinic.Models.PharmacistStock>
+
+@{
+    ViewBag.Title = "Restock Items";
+    var lowStockItems = ViewBag.LowStockItems as List<int>;
+}
+
+<div class="container pt-5 pb-5">
+    <h2 class="text-center mb-4" style="color: #1e3a8a;">Restock Items</h2>
+
+    <!-- Success and Error Messages -->
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div id="successMessage" class="alert alert-success text-center">
+            @TempData["SuccessMessage"]
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div id="errorMessage" class="alert alert-danger text-center">
+            @TempData["ErrorMessage"]
+        </div>
+    }
+
+    @using (Html.BeginForm("Restock", "Pharmacist", FormMethod.Post, new { id = "restockForm" }))
+    {
+        @Html.AntiForgeryToken()
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover text-center" id="restockTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th scope="col">Select</th>
+                        <th scope="col">Item Name</th>
+                        <th scope="col">Quantity Available</th>
+                        <th scope="col">Order Amount</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Count(); i++)
+                    {
+                        var item = Model.ElementAt(i);
+                        bool isLowStock = lowStockItems.Contains(item.Id);
+
+                        <tr class="align-middle">
+                            <td>
+                                <input type="checkbox" value="@item.Id" class="form-check-input item-checkbox" @(isLowStock ? "checked" : "") />
+                                <input type="hidden" name="selectedItems" value="@item.Id" disabled />
+                            </td>
+                            <td>
+                                <span class="fw-bold">@item.ItemName</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">@item.QuantityAvailable</span>
+                            </td>
+                            <td>
+                                <input type="number" name="quantities" class="form-control order-amount" placeholder="Enter order amount"
+                                       style="@(isLowStock ? "" : "display:none;")" min="1" value="@(isLowStock ? "1" : "")" disabled />
+                                <span class="text-danger validation-message"></span>
+                            </td>
+                            <td></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Buttons -->
+        <div class="text-center mt-4">
+            <button type="button" id="addNewItem" class="btn btn-light-orange mb-2">Add New Item</button>
+            <button type="button" onclick="submitFilteredForm()" class="btn btn-dark-orange">Check Supplier Availability</button>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const addNewItemBtn = document.getElementById("addNewItem");
+
+            console.log("Add New Item Button Detected:", addNewItemBtn);
+
+            addNewItemBtn.addEventListener("click", function () {
+                console.log("Add New Item button clicked");
+
+                // Prevent adding a new row if an incomplete new item row exists
+                if (document.querySelector(".new-item-row")) {
+                    console.log("Cannot add a new row: An empty new item row already exists.");
+                    return;
+                }
+
+                const tableBody = document.querySelector("#restockTable tbody");
+                const newRow = document.createElement("tr");
+                newRow.classList.add("align-middle", "new-item-row");
+
+                newRow.innerHTML = `
+                        <td>
+                            <input type="checkbox" class="form-check-input new-item-checkbox" checked disabled />
+                            <input type="hidden" name="newItemsSelected" value="true" />
+                        </td>
+                        <td>
+                            <input type="text" name="newItemNames" class="form-control new-item-name" placeholder="Enter item name" required />
+                            <span class="text-danger validation-message"></span>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning">N/A</span>
+                        </td>
+                        <td>
+                            <input type="number" name="newQuantities" class="form-control new-item-quantity" placeholder="Enter order amount" min="1" required />
+                            <span class="text-danger validation-message"></span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-danger remove-row-btn">Remove</button>
+                        </td>
+                    `;
+
+                tableBody.appendChild(newRow);
+                console.log("New row added:", newRow);
+
+                addNewItemBtn.disabled = true;
+
+                const newNameInput = newRow.querySelector(".new-item-name");
+                const newQuantityInput = newRow.querySelector(".new-item-quantity");
+                const removeButton = newRow.querySelector(".remove-row-btn");
+
+                newNameInput.addEventListener("input", () => validateNewItemRow(newRow));
+                newQuantityInput.addEventListener("input", () => validateNewItemRow(newRow));
+
+                removeButton.addEventListener("click", function () {
+                    console.log("Row removed:", newRow);
+                    newRow.remove();
+                    addNewItemBtn.disabled = false; // Re-enable the button
+                });
+            });
+
+            function validateNewItemRow(row) {
+                const newNameInput = row.querySelector(".new-item-name");
+                const newQuantityInput = row.querySelector(".new-item-quantity");
+                const nameFilled = newNameInput.value.trim() !== "";
+                const quantityFilled = newQuantityInput.value.trim() !== "";
+
+                if (!nameFilled) {
+                    newNameInput.nextElementSibling.textContent = "Item name is required.";
+                } else {
+                    newNameInput.nextElementSibling.textContent = ""; // Clear validation
+                }
+
+                if (!quantityFilled) {
+                    newQuantityInput.nextElementSibling.textContent = "Order amount is required.";
+                } else {
+                    newQuantityInput.nextElementSibling.textContent = ""; // Clear validation
+                }
+
+                // If both fields are filled, consider this row "completed"
+                if (nameFilled && quantityFilled) {
+                    console.log("Row validated and completed:", row);
+
+                    // Remove the 'new-item-row' class so another row can be added
+                    row.classList.remove("new-item-row");
+
+                    // Re-enable "Add New Item" button
+                    addNewItemBtn.disabled = false;
+                } else {
+                    // Keep the button disabled if fields are not fully completed
+                    addNewItemBtn.disabled = true;
+                }
+            }
+        });
+
+        // Define the submitFilteredForm function
+        function submitFilteredForm() {
+            const allInputsValid = Array.from(document.querySelectorAll(".new-item-row")).every((row) => {
+                const newNameInput = row.querySelector(".new-item-name");
+                const newQuantityInput = row.querySelector(".new-item-quantity");
+                const isValid = newNameInput.value.trim() !== "" && newQuantityInput.value.trim() !== "";
+
+                if (!isValid) {
+                    // Show validation messages for incomplete rows
+                    validateNewItemRow(row);
+                }
+
+                return isValid;
+            });
+
+            if (allInputsValid) {
+                const checkboxes = document.querySelectorAll(".item-checkbox");
+                const form = document.getElementById("restockForm");
+
+                // Disable inputs for unchecked items
+                checkboxes.forEach((checkbox) => {
+                    const quantityInput = checkbox.closest("tr").querySelector(".order-amount");
+                    if (!checkbox.checked) {
+                        checkbox.nextElementSibling.disabled = true;
+                        quantityInput.disabled = true;
+                    }
+                });
+
+                // Submit the form
+                console.log("Form submitted with selected items.");
+                form.submit();
+            } else {
+                alert("Please complete all required fields before submitting.");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const checkboxes = document.querySelectorAll(".item-checkbox");
+
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener("change", function () {
+                    const row = checkbox.closest("tr");
+                    const orderAmountInput = row.querySelector(".order-amount");
+                    const hiddenInput = checkbox.nextElementSibling; // The hidden input for selectedItems
+
+                    // Show and enable the order amount input if the checkbox is checked
+                    if (checkbox.checked) {
+                        orderAmountInput.style.display = "inline-block"; // Show the input
+                        orderAmountInput.disabled = false; // Enable the input
+                        hiddenInput.disabled = false; // Enable the hidden input
+                    } else {
+                        orderAmountInput.style.display = "none"; // Hide the input
+                        orderAmountInput.disabled = true; // Disable the input
+                        hiddenInput.disabled = true; // Disable the hidden input
+                    }
+                });
+
+                // Initialize on page load for checked checkboxes
+                if (checkbox.checked) {
+                    const row = checkbox.closest("tr");
+                    const orderAmountInput = row.querySelector(".order-amount");
+                    const hiddenInput = checkbox.nextElementSibling;
+
+                    orderAmountInput.style.display = "inline-block"; // Show the input
+                    orderAmountInput.disabled = false; // Enable the input
+                    hiddenInput.disabled = false; // Enable the hidden input
+                }
+            });
+        });
+
+
+
+
+    </script>
+}
+
+
+
+
+
+
+
+@section Styles {
+    <style>
+        .btn-orange {
+            background-color: #ff7f00;
+            color: white;
+        }
+
+            .btn-orange:hover {
+                background-color: #ff5c00;
+                color: white;
+            }
+
+        .btn-light-orange {
+            background-color: #ffb84d;
+            color: white;
+        }
+
+            .btn-light-orange:hover {
+                background-color: #ffaa33;
+                color: white;
+            }
+
+        .btn-dark-orange {
+            background-color: #cc6600;
+            color: white;
+        }
+
+            .btn-dark-orange:hover {
+                background-color: #b35900;
+                color: white;
+            }
+    </style>
+}

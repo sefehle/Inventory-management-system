@@ -1,0 +1,95 @@
+﻿@{
+    ViewBag.Title = "Home - NorthMed Clinic";
+}
+
+<section class="hero-section text-center py-5 bg-primary text-white">
+    <div class="container">
+        <h1 class="display-4">Welcome to NorthMed Clinic</h1>
+        <p class="lead">Comprehensive healthcare with a focus on personalized, quality care for our community.</p>
+        <a href="@Url.Action("Contact", "Home")" class="btn btn-light mt-3">Contact Us</a>
+    </div>
+</section>
+
+<section class="about-section py-5">
+    <div class="container">
+        <h2 class="text-center mb-4" style="color: #1e3a8a;">About Us</h2>
+        <p class="text-center mb-5">NorthMed Clinic is a trusted healthcare provider offering a range of services to meet the health needs of our patients. We are dedicated to providing personalized and high-quality healthcare with a team of experienced professionals.</p>
+        <div class="row text-center">
+            <div class="col-md-4">
+                <i class="bi bi-heart-pulse fs-1 mb-3" style="color: #ff6f00;"></i>
+                <h4>Comprehensive Care</h4>
+                <p>From routine check-ups to specialized treatments, we provide a wide range of healthcare services.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-shield-check fs-1 mb-3" style="color: #007bff;"></i>
+                <h4>Experienced Staff</h4>
+                <p>Our team includes experienced doctors, nurses, and support staff who prioritize patient care and well-being.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-clock-history fs-1 mb-3" style="color: #28a745;"></i>
+                <h4>Convenient Hours</h4>
+                <p>We offer flexible hours, including evenings and weekends, to ensure our patients receive timely care.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="services-section py-5 bg-light">
+    <div class="container">
+        <h2 class="text-center mb-4" style="color: #1e3a8a;">Our Services</h2>
+        <div class="row text-center">
+            <div class="col-md-4">
+                <i class="bi bi-stethoscope fs-1 mb-3" style="color: #ff6f00;"></i>
+                <h5>Primary Care</h5>
+                <p>Routine check-ups, preventive care, and personalized treatment plans for all ages.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-capsule-pill fs-1 mb-3" style="color: #007bff;"></i>
+                <h5>Pharmacy Services</h5>
+                <p>In-house pharmacy with a full range of medications and knowledgeable pharmacists.</p>
+            </div>
+            <div class="col-md-4">
+                <i class="bi bi-activity fs-1 mb-3" style="color: #28a745;"></i>
+                <h5>Diagnostics</h5>
+                <p>State-of-the-art lab and imaging services to support fast and accurate diagnosis.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="contact-info-section py-5">
+    <div class="container">
+        <h2 class="text-center mb-4" style="color: #1e3a8a;">Get in Touch</h2>
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Operating Hours</h5>
+                <p>Monday - Friday: 8:00 AM - 6:00 PM</p>
+                <p>Saturday: 9:00 AM - 2:00 PM</p>
+                <p>Sunday: Closed</p>
+            </div>
+            <div class="col-md-6">
+                <h5>Contact Us</h5>
+                <p><strong>Phone:</strong> (123) 456-7890</p>
+                <p><strong>Email:</strong> info@northmedclinic.com</p>
+                <p><strong>Address:</strong> 1234 Health St, Wellness City</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+@section Styles {
+    <style>
+        .hero-section {
+            background: linear-gradient(135deg, #1e3a8a, #007bff);
+            color: white;
+        }
+
+        .services-section .bi {
+            font-size: 2em;
+        }
+
+        .about-section .bi, .services-section .bi {
+            color: #ff6f00;
+        }
+    </style>
+}

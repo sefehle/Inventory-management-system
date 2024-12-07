@@ -1,0 +1,221 @@
+﻿@model IEnumerable<NorthmedClinic.Models.OrderItemDetails>
+
+@{
+    ViewBag.Title = "Supplier Orders";
+}
+
+<div class="container pt-5 pb-5">
+    <h2 class="text-center mb-4">Your Assigned Orders</h2>
+
+    <!-- Search bar for filtering by Order ID -->
+    <div class="mb-4 text-center">
+        <input type="text" id="orderSearchInput" class="form-control" placeholder="Search by Order ID..." onkeyup="searchOrdersById()" style="max-width: 300px; margin: auto;">
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info text-center">No orders assigned to you at the moment.</div>
+    }
+    else
+    {
+        <!-- Section for Pending and In-progress Orders -->
+        <h3 class="text-dark mb-4">Pending and In-progress Orders</h3>
+        foreach (var orderGroup in Model.GroupBy(o => o.OrderItem.Order.Id).Where(g => g.Any(item => item.Status != "Ready")))
+        {
+            var orderId = orderGroup.Key;
+            <div class="card mb-4 order-card p-3 order-item-container" id="order-@orderId" data-order-id="@orderId">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #ff8c00; color: white;">
+                    <h5 class="mb-0">Order #: @orderId</h5>
+                    <form action="@Url.Action("UpdateStatus", "Suppliers")" method="post" style="display: inline;">
+                        <input type="hidden" name="status" value="Ready" />
+                        @foreach (var item in orderGroup)
+                        {
+                            <input type="hidden" name="itemIds" value="@item.Id" />
+                        }
+                        <button type="submit" class="btn btn-outline-light btn-sm">Mark All as Ready</button>
+                    </form>
+                </div>
+
+                <div class="card-body">
+                    @foreach (var item in orderGroup)
+                    {
+                        <div class="order-item border-bottom pb-2 mb-2">
+                            <h6 class="mb-1">@item.OrderItem.ItemName</h6>
+                            <div class="d-flex justify-content-between">
+                                <span><strong>Quantity:</strong> @item.Quantity</span>
+                                <span><strong>Price:</strong> @item.Price.ToString("C")</span>
+                                <span><strong>Status:</strong> @item.Status</span>
+                                <span>
+                                    @if (item.Status != "Ready")
+                                    {
+                                        <!-- Form for marking individual item as Ready -->
+                                        <form action="@Url.Action("UpdateStatus", "Suppliers")" method="post" style="display: inline;">
+                                            <input type="hidden" name="status" value="Ready" />
+                                            <input type="hidden" name="itemIds" value="@item.Id" />
+                                            <button type="submit" class="btn btn-outline-orange btn-sm">Mark as Ready</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success">Ready</span>
+                                    }
+                                </span>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Conditionally render Returned Items section only if there are returned items -->
+                    @{
+                        var returnedItems = orderGroup.Where(item => item.OrderItem.Order.IsVerified && item.Condition == "Bad").ToList();
+                    }
+
+                    @if (returnedItems.Any())
+                    {
+                        <!-- Divider for returned items section -->
+                        <hr class="mt-4 mb-4" />
+
+                        <!-- Section for Returned Items -->
+                        <h5 class="text-danger">Returned Items</h5>
+                        foreach (var returnedItem in returnedItems)
+                        {
+                            <div class="order-item border-bottom pb-2 mb-2">
+                                <h6 class="mb-1">@returnedItem.OrderItem.ItemName</h6>
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Quantity:</strong> @returnedItem.Quantity</span>
+                                    <span><strong>Price:</strong> @returnedItem.Price.ToString("C")</span>
+                                    <span><strong>Status:</strong> @returnedItem.Status</span>
+                                    <span><strong>Condition:</strong> <span class="text-danger">@returnedItem.Condition</span></span>
+                                </div>
+                                <div>
+                                    <strong>Return Reason:</strong> @returnedItem.ReturnReason
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Section for Ready Orders -->
+        <h3 class="text-success mb-4 mt-5">Ready Orders</h3>
+        foreach (var orderGroup in Model.GroupBy(o => o.OrderItem.Order.Id).Where(g => g.All(item => item.Status == "Ready")))
+        {
+            var orderId = orderGroup.Key;
+            <div class="card mb-4 order-card p-3 order-item-container" id="order-@orderId" data-order-id="@orderId">
+                <div class="card-header d-flex justify-content-between align-items-center" style="background-color: #28a745; color: white;">
+                    <h5 class="mb-0">Order #: @orderId</h5>
+                </div>
+
+                <div class="card-body">
+                    @foreach (var item in orderGroup)
+                    {
+                        <div class="order-item border-bottom pb-2 mb-2">
+                            <h6 class="mb-1">@item.OrderItem.ItemName</h6>
+                            <div class="d-flex justify-content-between">
+                                <span><strong>Quantity:</strong> @item.Quantity</span>
+                                <span><strong>Price:</strong> @item.Price.ToString("C")</span>
+                                <span><strong>Status:</strong> <span class="text-success">Ready</span></span>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Conditionally render Returned Items section only if there are returned items -->
+                    @{
+                        var returnedItems = orderGroup.Where(item => item.OrderItem.Order.IsVerified && item.Condition == "Bad").ToList();
+                    }
+
+                    @if (returnedItems.Any())
+                    {
+                        <!-- Divider for returned items section -->
+                        <hr class="mt-4 mb-4" />
+
+                        <!-- Section for Returned Items -->
+                        <h5 class="text-danger">Returned Items</h5>
+                        foreach (var returnedItem in returnedItems)
+                        {
+                            <div class="order-item border-bottom pb-2 mb-2">
+                                <h6 class="mb-1">@returnedItem.OrderItem.ItemName</h6>
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Quantity:</strong> @returnedItem.Quantity</span>
+                                    <span><strong>Price:</strong> @returnedItem.Price.ToString("C")</span>
+                                    <span><strong>Status:</strong> @returnedItem.Status</span>
+                                    <span><strong>Condition:</strong> <span class="text-danger">@returnedItem.Condition</span></span>
+                                </div>
+                                <div>
+                                    <strong>Return Reason:</strong> @returnedItem.ReturnReason
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script>
+        function searchOrdersById() {
+            // Get the input value and convert it to lowercase
+            const searchValue = document.getElementById('orderSearchInput').value.toLowerCase();
+
+            // Select all order item containers
+            const orderItems = document.querySelectorAll('.order-item-container');
+
+            // Loop through each order item container to check if it matches the search criteria
+            orderItems.forEach(orderItem => {
+                // Get the Order ID from the data attribute
+                const orderId = orderItem.getAttribute('data-order-id').toLowerCase();
+
+                // Check if the order ID contains the search value
+                if (orderId.includes(searchValue)) {
+                    orderItem.style.display = ''; // Show matching order
+                } else {
+                    orderItem.style.display = 'none'; // Hide non-matching order
+                }
+            });
+        }
+    </script>
+}
+
+@section Styles {
+    <style>
+        .order-card {
+            border: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .card-header {
+            color: white;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        .order-item {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        .d-flex.justify-content-between span {
+            flex-basis: 20%;
+            font-size: 0.9em;
+        }
+
+        .btn-outline-orange {
+            color: #ff8c00;
+            border-color: #ff8c00;
+        }
+
+            .btn-outline-orange:hover {
+                background-color: #ff8c00;
+                color: white;
+            }
+
+        .btn-sm {
+            font-size: 0.85rem;
+        }
+    </style>
+}

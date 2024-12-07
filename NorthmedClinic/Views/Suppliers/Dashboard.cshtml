@@ -1,0 +1,65 @@
+﻿@model IEnumerable<NorthmedClinic.Models.Inventory>
+
+@{
+    ViewBag.Title = "Supplier Dashboard";
+}
+<h2 class="text-center mb-4" style="color: #1e3a8a;">Supplier Dashboard</h2>
+
+<!-- Display the supplier name at the top -->
+<h1 class="text-center mb-4" style="color: #1e3a8a;">Welcome @ViewBag.SupplierName!!</h1>
+
+
+
+<!-- Configure Inventory Button -->
+<div class="text-center mb-4">
+    <a href="@Url.Action("Index", "Suppliers")" class="btn btn-primary" style="background-color: #1e3a8a; border-color: #1e3a8a;">Configure Inventory</a>
+    <a href="@Url.Action("SeeOrders", "Suppliers")" class="btn btn-primary" style="background-color: #1e3a8a; border-color: #1e3a8a;">See Orders</a>
+</div>
+
+<!-- Bar Graph: Inventory Stock Levels -->
+<div class="card">
+    <div class="card-header" style="background-color: #1e3a8a; color: white;">
+        <h3 class="mb-0">Inventory Stock Levels</h3>
+    </div>
+    <div class="card-body">
+        <canvas id="inventoryChart" width="400" height="200"></canvas>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Retrieve data from ViewBag
+        var itemNames = @Html.Raw(Json.Encode(ViewBag.ItemNames));
+        var quantities = @Html.Raw(Json.Encode(ViewBag.Quantities));
+
+        var ctx = document.getElementById('inventoryChart').getContext('2d');
+        var inventoryChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: itemNames,
+                datasets: [{
+                    label: 'Stock Quantity',
+                    data: quantities,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)', // Light teal color
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                }
+            }
+        });
+    </script>
+}

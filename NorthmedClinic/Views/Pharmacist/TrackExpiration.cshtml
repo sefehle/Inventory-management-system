@@ -1,0 +1,171 @@
+﻿@model IEnumerable<NorthmedClinic.Models.TrackExpirationViewModel>
+
+@{
+    ViewBag.Title = "Track Expiration";
+}
+
+<h2 class="text-center mb-4" style="color: #ff6f00;">Track Expiration Dates</h2>
+
+<!-- Search Box -->
+<div class="text-center mb-3">
+    <input type="text" id="searchInput" class="form-control w-50 mx-auto" placeholder="Search by Item Name or Batch Code" oninput="searchByNameOrBatchCode()" />
+</div>
+
+<!-- Scan Medicine Button -->
+<div class="text-center mb-4">
+    <button id="scan-medicine" class="btn btn-primary">Scan Medicine Barcode 📷</button>
+</div>
+
+<!-- Scan Area - Initially Hidden -->
+<section id="scan-tickets" style="display: none;">
+    <div class="container">
+        <h2 class="text-center mb-4">Scan Medicine QR Code</h2>
+
+        <div id="video-container" class="text-center">
+            <video id="scanner" width="300" height="200" class="mb-3"></video>
+        </div>
+
+        <div id="scan-result" class="mt-4">
+            <h4>Scan Result:</h4>
+            <div id="result-text" class="bg-light text-dark p-3 rounded"></div>
+        </div>
+    </div>
+</section>
+
+<table class="table table-striped text-center" id="expirationTable">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Batch Code</th>
+            <th>Expiration Date</th>
+            <th>Countdown</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            var daysToExpiry = (item.ExpirationDate - DateTime.Today).Days;
+            <tr>
+                <td>@item.Name</td>
+                <td>@item.BatchCode</td>
+                <td>@item.ExpirationDate.ToString("yyyy-MM-dd")</td>
+                <td>
+                    @if (daysToExpiry < 0)
+                    {
+                        <span class="text-danger">Expired Please Discard Medicine</span>
+                    }
+                    else if (daysToExpiry <= 2)
+                    {
+                        <span class="text-danger countdown" data-expiration="@item.ExpirationDate.ToString("yyyy-MM-ddTHH:mm:ss")">
+                            Expiring in @daysToExpiry days
+                        </span>
+                    }
+                    else
+                    {
+                        <span>Expiring in @daysToExpiry days</span>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+    <script>
+        // Search functionality for both Item Name and Batch Code
+        function searchByNameOrBatchCode() {
+            const searchValue = document.getElementById("searchInput").value.toLowerCase();
+            const rows = document.querySelectorAll("#expirationTable tbody tr");
+
+            rows.forEach(row => {
+                const itemName = row.cells[0].innerText.toLowerCase();
+                const batchCode = row.cells[1].innerText.toLowerCase();
+
+                if (itemName.includes(searchValue) || batchCode.includes(searchValue)) {
+                    row.style.display = "table-row";
+                } else {
+                    row.style.display = "none";
+                }
+            });
+        }
+
+        // Show the Scan Area and Start the Scan
+        document.getElementById('scan-medicine').addEventListener('click', function () {
+            document.getElementById('scan-tickets').style.display = 'block';
+
+            let video = document.getElementById('scanner');
+            let canvasElement = document.createElement('canvas');
+            let canvas = canvasElement.getContext('2d');
+            let scanning = true;
+
+            // Start the video stream
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function(stream) {
+                video.srcObject = stream;
+                video.setAttribute('playsinline', true); // Required for iOS Safari
+                video.play();
+                requestAnimationFrame(tick);
+            });
+
+            // QR scanning function
+            function tick() {
+                if (!scanning) return;
+
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvasElement.height = video.videoHeight;
+                    canvasElement.width = video.videoWidth;
+                    canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+
+                    let imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                    let code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+
+                    if (code) {
+                        document.getElementById('result-text').innerHTML = "<h3>Processing...</h3>";
+                        scanning = false;
+                        video.pause();
+
+                        // Send the scanned QR code data (batch code) to the server to retrieve stock info
+                        $.ajax({
+                            url: '@Url.Action("GetStockInfoByBatch", "Pharmacist")',
+                            type: 'POST',
+                            data: { batchCode: code.data },
+                            dataType: 'json',
+                            success: function(response) {
+                                console.log("Response from server:", response);  // Log the server response
+                                if (response.success) {
+                                    document.getElementById('result-text').innerHTML = `
+                                        <h4>Item Name: ${response.name}</h4>
+                                        <p>Batch Code: ${response.batchCode}</p>
+                                        <strong>Expires: ${response.expirationDate}</strong>
+                                    `;
+                                } else {
+                                    document.getElementById('result-text').innerHTML = `<h4>${response.message}</h4>`;
+                                }
+                            },
+                            error: function(xhr, status, error) {
+                                console.log("AJAX Error:", status, error);  // Log error details
+                                document.getElementById('result-text').innerHTML = "<h4>Error retrieving stock information.</h4>";
+                            }
+                        });
+                    }
+                    if (code) {
+                        console.log("QR Code Detected:", code.data); // Check the output in the browser console
+                    } else {
+                        console.log("No QR Code detected"); // This will show if no code is detected
+                    }
+                }
+                requestAnimationFrame(tick);
+            }
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .table th {
+            background-color: #1e3a8a;
+            color: white;
+        }
+    </style>
+}

@@ -1,0 +1,208 @@
+﻿@model IEnumerable<NorthmedClinic.Models.PharmacistStock>
+
+@{
+    ViewBag.Title = "Manage Stock";
+}
+
+
+
+<h2 class="text-center mb-4" style="color: #1e3a8a;">Manage Stock</h2>
+
+<!-- Success Message -->
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success text-center">
+        @TempData["SuccessMessage"]
+    </div>
+}
+
+
+<!-- Buttons -->
+<div class="text-center mb-4">
+    @*<a href="@Url.Action("Create", "Pharmacist")" class="btn btn-orange" id="addStockButton" style="font-size: 8px; padding: 3px 6px; display: inline-block; opacity: 0.3;">New stock Item</a>*@
+    <a href="@Url.Action("Restock", "Pharmacist")" class="btn btn-light-orange">Make Order</a>
+    <a href="@Url.Action("TrackExpiration", "Pharmacist")" class="btn btn-dark-orange">Track Expiry</a>
+</div>
+
+
+
+<!-- Search Box -->
+<div class="text-center mb-3">
+    <input type="text" id="searchItemName" class="form-control w-50 mx-auto" placeholder="Search by Item Name" oninput="searchByItemName()" />
+</div>
+
+<!-- Bar Graph: Inventory Stock Levels -->
+<div class="card mt-4 mx-auto" style="max-width: 600px;">
+    <div class="card-header" style="background-color: #1e3a8a; color: white;">
+        <h3 class="mb-0 text-center">Inventory Stock Levels</h3>
+    </div>
+    <div class="card-body text-center">
+        <canvas id="stockChart" width="300" height="150"></canvas>
+    </div>
+</div>
+
+<!-- Stock Table -->
+<table class="table text-center mt-4" id="stockTable">
+    <thead>
+        <tr>
+            <th>Batch Code</th>
+            <th>Item Name</th>
+            <th>Dosage</th>
+            <th>Quantity Available</th>
+            <th>Last Updated Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            string previousItemName = null;
+            string backgroundColor = "#f9f9f9";
+        }
+
+        @foreach (var item in Model.OrderBy(i => i.ItemName))
+        {
+            if (item.ItemName != previousItemName)
+            {
+                backgroundColor = backgroundColor == "#f9f9f9" ? "#e8f5e9" : "#f9f9f9";
+                previousItemName = item.ItemName;
+            }
+
+            <tr style="background-color: @backgroundColor;">
+                <td>@item.BatchCode</td>
+                <td>@item.ItemName</td>
+                <td>@item.Dosage</td>
+                <td>@item.QuantityAvailable</td>
+                <td>@item.LastUpdatedDate.ToString("d")</td>
+                <td>
+                    <a href="@Url.Action("SendStockQRCodeEmail", "Pharmacist", new { id = item.Id })" class="btn btn-primary btn-sm" style="padding: 0px 0px;">
+                        <img src="https://openmoji.org/data/color/svg/E1D8.svg" alt="QR Code" style="width: 33px; height: 33px; vertical-align: middle;" />
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        function searchByItemName() {
+            const searchValue = document.getElementById("searchItemName").value.toLowerCase();
+            const rows = document.querySelectorAll("#stockTable tbody tr");
+
+            rows.forEach(row => {
+                const itemName = row.cells[1].innerText.toLowerCase();
+                row.style.display = itemName.includes(searchValue) ? "table-row" : "none";
+            });
+        }
+
+        // Get the item names and quantities for the chart
+        var itemNames = @Html.Raw(Json.Encode(ViewBag.ItemNames));
+        var quantities = @Html.Raw(Json.Encode(ViewBag.Quantities));
+
+        var ctx = document.getElementById('stockChart').getContext('2d');
+        var stockChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: itemNames,
+                datasets: [{
+                    label: 'Stock Quantity',
+                    data: quantities,
+                    backgroundColor: quantities.map(qty => qty < 10 ? 'rgba(255, 99, 132, 0.5)' : 'rgba(75, 192, 192, 0.5)'),
+                    borderColor: quantities.map(qty => qty < 10 ? 'rgba(255, 99, 132, 1)' : 'rgba(75, 192, 192, 1)'),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(tooltipItem) {
+                                return tooltipItem.raw < 10 ? 'Quantity is low' : 'Quantity: ' + tooltipItem.raw;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Hide success message after 3 seconds
+        document.addEventListener("DOMContentLoaded", function () {
+            const successMessage = document.querySelector(".alert-success");
+            if (successMessage) {
+                setTimeout(() => {
+                    successMessage.style.display = "none";
+                }, 3000);
+            }
+        });
+
+        function addLowQuantityLabels() {
+            const meta = stockChart.getDatasetMeta(0);
+            const ctx = stockChart.ctx;
+
+            quantities.forEach((qty, index) => {
+                if (qty < 10) {
+                    const bar = meta.data[index];
+                    const position = bar.tooltipPosition();
+
+                    ctx.fillStyle = 'red';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Low Quantity', position.x, position.y - 10);
+                }
+            });
+        }
+
+        stockChart.options.animation.onComplete = addLowQuantityLabels;
+        stockChart.update();
+
+    </script>
+}
+
+@section Styles {
+    <style>
+        .table th {
+            background-color: #1e3a8a;
+            color: white;
+        }
+
+        .btn-orange {
+            background-color: #ff7f00;
+            color: white;
+        }
+
+            .btn-orange:hover {
+                background-color: #ff5c00;
+                color: white;
+            }
+
+        .btn-light-orange {
+            background-color: #ffb84d;
+            color: white;
+        }
+
+            .btn-light-orange:hover {
+                background-color: #ffaa33;
+                color: white;
+            }
+
+        .btn-dark-orange {
+            background-color: #cc6600;
+            color: white;
+        }
+
+            .btn-dark-orange:hover {
+                background-color: #b35900;
+                color: white;
+            }
+    </style>
+}
+

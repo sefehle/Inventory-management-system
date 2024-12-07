@@ -1,0 +1,46 @@
+﻿@{
+    ViewBag.Title = "Pharmacist Dashboard";
+}
+
+<h2 class="text-center mb-4" style="color: #1e3a8a;">Pharmacist Dashboard</h2>
+
+<!-- Manage Stock Button -->
+<div class="text-center mb-4">
+    <a href="@Url.Action("ManageStock", "Pharmacist")" class="btn btn-light-orange" style="background-color: #ff7f00; border-color: #ff7f00;">Manage Stock</a>
+    <a href="@Url.Action("ManageOrders", "Pharmacist")" class="btn btn-dark-orange" style="background-color: #cc6600; border-color: #cc6600;">Manage Orders</a>
+</div>
+
+
+@section Styles {
+    <style>
+        .btn-orange {
+            background-color: #ff7f00;
+            color: white;
+        }
+
+            .btn-orange:hover {
+                background-color: #ff5c00;
+                color: white;
+            }
+
+        .btn-light-orange {
+            background-color: #ffb84d;
+            color: white;
+        }
+
+            .btn-light-orange:hover {
+                background-color: #ffaa33;
+                color: white;
+            }
+
+        .btn-dark-orange {
+            background-color: #cc6600;
+            color: white;
+        }
+
+            .btn-dark-orange:hover {
+                background-color: #b35900;
+                color: white;
+            }
+    </style>
+}

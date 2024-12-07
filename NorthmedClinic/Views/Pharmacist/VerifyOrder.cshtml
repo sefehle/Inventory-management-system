@@ -1,0 +1,236 @@
+﻿@model NorthmedClinic.Models.VerifyOrderViewModel
+
+<div class="container pt-5 pb-5">
+    <h2 class="text-center mb-4">Invoice Verification for Order #@Model.OrderId</h2>
+
+    <div class="row mb-4 paper-effect">
+        <!-- Left Side: Ordered Items -->
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Ordered Items</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        @foreach (var item in Model.OrderItems)
+                        {
+                            <li class="list-group-item">
+                                <strong>Item:</strong> @item.ItemName<br>
+                                <strong>Quantity Ordered:</strong> @item.QuantityOrdered
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Supplier Details and Condition Options -->
+        <div class="col-md-6">
+            <form id="verifyForm" method="post" action="@Url.Action("ConfirmVerification", "Pharmacist", new { orderId = Model.OrderId })">
+                @Html.AntiForgeryToken()
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h4 class="mb-0">Received Items with Supplier Details</h4>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group">
+                            @foreach (var item in Model.OrderItems)
+                            {
+                                foreach (var detail in item.OrderItemDetails)
+                                {
+                                    <li class="list-group-item">
+                                        <strong>Item:</strong> @item.ItemName<br>
+                                        <strong>Quantity Supplied:</strong> @detail.Quantity<br>
+                                        <strong>Supplier:</strong> @detail.SupplierName
+
+                                        <!-- Good/Bad Radio Buttons -->
+                                        <div class="mt-2">
+                                            <label><input type="radio" name="Condition_@detail.Id" value="Good" checked> Good</label>
+                                            <label><input type="radio" name="Condition_@detail.Id" value="Bad"> Bad</label>
+                                        </div>
+
+                                        <!-- Dropdown for Return Reasons, shown if "Bad" is selected -->
+                                        <div id="returnReason_@detail.Id" class="mt-2" style="display: none;">
+                                            <label>Return Reason:</label>
+                                            <select name="ReturnReason_@detail.Id" class="form-control">
+                                                <option value="Damaged">Damaged or Defective</option>
+                                                <option value="Quality Issue">Product Quality Issue</option>
+                                                <option value="Non-Compliance with Regulations">Non-Compliance with Regulations</option>
+                                                <option value="Recalled Product">Recalled Product</option>
+                                                <option value="Unauthorized Substitution">Unauthorized Substitution</option>
+                                                <option value="Incorrect Labeling">Incorrect Labeling</option>
+                                                <!-- Add more reasons as needed -->
+                                            </select>
+                                        </div>
+                                    </li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Signature and Verification Section -->
+    <div class="d-flex justify-content-center mt-5">
+        <div class="card shadow-sm" style="max-width: 500px; padding: 20px;">
+            <div class="card-body text-center">
+                <h5>Signature Required for Verification:</h5>
+                <p>Please sign below to verify this order:</p>
+
+                <!-- Signature Canvas -->
+                <canvas id="signatureCanvas" width="400" height="150" class="border rounded"></canvas>
+                <br />
+                <button type="button" class="btn btn-outline-secondary mt-2" onclick="clearSignature()">Clear Signature</button>
+
+                <!-- Signature validation message -->
+                <p id="signatureMessage" style="color: red; display: none; margin-top: 10px;">
+                    Please provide a signature before verifying.
+                </p>
+
+                <button type="submit" form="verifyForm" class="btn btn-success" id="verifyButton" disabled>Complete Order Verification</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let canvas = document.getElementById('signatureCanvas');
+        let ctx = canvas.getContext('2d');
+        let drawing = false;
+        let hasSigned = false;
+
+        // Event listeners for drawing on the canvas
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+
+        function startDrawing(e) {
+            drawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        }
+
+        function stopDrawing() {
+            if (drawing) {
+                hasSigned = true;
+                enableVerifyButton();
+            }
+            drawing = false;
+        }
+
+        function enableVerifyButton() {
+            if (hasSigned) {
+                document.getElementById('verifyButton').disabled = false;
+                document.getElementById('signatureMessage').style.display = 'none';
+            }
+        }
+
+        function clearSignature() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            hasSigned = false;
+            document.getElementById('verifyButton').disabled = true;
+            document.getElementById('signatureMessage').style.display = 'block';
+        }
+
+        // Prevent form submission if signature is not provided
+        function validateSignature(event) {
+            if (!hasSigned) {
+                event.preventDefault();
+                document.getElementById('signatureMessage').style.display = 'block';
+            }
+        }
+
+        // Attach validateSignature to form submission event
+        document.getElementById('verifyForm').addEventListener('submit', validateSignature);
+
+        // Show or hide Return Reason dropdown based on radio button selection
+        document.querySelectorAll('input[type="radio"]').forEach((radio) => {
+            radio.addEventListener('change', function () {
+                const detailId = this.name.split('_')[1];
+                const reasonDropdown = document.getElementById(`returnReason_${detailId}`);
+
+                if (this.value === 'Bad') {
+                    reasonDropdown.style.display = 'block';
+                } else {
+                    reasonDropdown.style.display = 'none';
+                }
+            });
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .paper-effect {
+            background-color: #fdfdfd;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .item-details {
+            background-color: #fafafa;
+            border: 1px solid #e1e1e1;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            color: #555;
+        }
+
+        .signature-canvas {
+            border: 1px solid #333;
+            margin-top: 10px;
+            display: block;
+        }
+
+        .btn-success {
+            font-weight: bold;
+        }
+
+        #verifyButton {
+            margin-top: 15px;
+        }
+
+        .card-body {
+            font-family: "Courier New", monospace;
+        }
+
+        #signatureCanvas {
+            display: block;
+            margin: 0 auto;
+            border: 1px solid #333;
+        }
+
+        .btn-outline-secondary {
+            padding: 5px 10px;
+        }
+
+        #verifyForm {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+        }
+    </style>
+}

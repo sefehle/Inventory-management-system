@@ -1,0 +1,35 @@
+﻿@model IEnumerable<NorthmedClinic.Models.Inventory>
+
+<h2>Your Supplier Inventory</h2>
+<p>
+    <a href="@Url.Action("Create")" class="btn btn-primary">Add New Item</a>
+</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Item Name</th>
+            <th>Dosage</th>
+            <th>Quantity</th>
+            <th>Expiration Date</th>
+            <th>Price</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.ItemName</td>
+                <td>@item.Dosage</td>
+                <td>@item.Quantity</td>
+                <td>@item.ExpirationDate.ToString("d")</td>
+                <td>@item.Price.ToString("C")</td>
+                <td>
+                    @Html.ActionLink("Edit", "Edit", new { id = item.Id }) |
+                    |
+                    @Html.ActionLink("Delete", "Delete", new { id = item.Id })
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
