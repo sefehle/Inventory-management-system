@@ -1,0 +1,1 @@
+This is an inventory management system for a hospital that allows pharmacists and suppliers to access this web app. Suppliers update their inventory and the Pharmacist orders from the system and the system calculates and efficiently makes the choice on which supplier to buy certain medicines from, making sure the pharmacist spends the least amount of money possible.
