@@ -1,4 +1,31 @@
-This is an inventory management system for a hospital that allows pharmacists and suppliers to access this web app. Suppliers update their inventory and the Pharmacist orders from the system and the system calculates and efficiently makes the choice on which supplier to buy certain medicines from, making sure the pharmacist spends the least amount of money possible.
+# 🏥 Northmed Clinic Inventory Management System
+
+## About
+The **Northmed Clinic Inventory Management System** is a smart web application designed for **pharmacists** and **suppliers** to efficiently manage and optimize medicine procurement. This system ensures that pharmacists **spend the least amount of money possible** while maintaining an adequate supply of medicines.
+
+## 📌 Features
+### ✅ Supplier Inventory Management
+- Suppliers can **update** their inventory details in real-time.
+- Each medicine entry includes **stock levels** and **pricing information**.
+
+### ✅ Intelligent Order Processing
+- Pharmacists place orders through the system.
+- The system **intelligently analyzes supplier stock and pricing**.
+- It selects the best supplier(s) and **optimizes the order to minimize costs**.
+
+### ✅ Smart Decision-Making
+- Before placing an order, the system:
+  1. **Checks supplier availability** for the required medicines.
+  2. **Compares prices** across multiple suppliers.
+  3. **Selects the most cost-effective combination** of suppliers.
+  4. **Finalizes the order**, ensuring minimal expenditure for the pharmacist.
+
+## 🛠️ Tech Stack
+- **Frontend:** HTML, CSS, JS
+- **Backend:** C#
+- **Database:** SQL Server
+- **Cloud Services:** Azure
+
 
 
 **Screenshots of Views**
